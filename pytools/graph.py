@@ -65,8 +65,8 @@ Type Variables Used
 """
 
 from typing import (
-    Any, Callable, Collection, Dict, Hashable, Iterator, List, Mapping, MutableSet,
-    Optional, Set, Tuple, TypeVar)
+    Any, Callable, Collection, Dict, Hashable, Iterator, List, Mapping,
+    MutableSet, Optional, Set, Tuple, TypeVar, FrozenSet, Iterable)
 
 
 try:
@@ -76,6 +76,7 @@ except ImportError:
 
 
 NodeT = TypeVar("NodeT", bound=Hashable)
+GraphNodeT = TypeVar("GraphNodeT")
 
 
 GraphT: TypeAlias[NodeT] = Mapping[NodeT, Collection[NodeT]]
@@ -489,7 +490,7 @@ def validate_graph(graph: GraphT[NodeT]) -> None:
 # }}}
 
 
-# {{{
+# {{{ is_connected
 
 def is_connected(graph: GraphT[NodeT]) -> bool:
     """
@@ -519,6 +520,57 @@ def is_connected(graph: GraphT[NodeT]) -> bool:
     dfs(next(iter(graph.keys())))
 
     return visited == graph.keys()
+
+# }}}
+
+
+# {{{ tag propagation graph processing
+
+def get_propagation_graph_from_constraints(
+        constraints: List[Tuple[str, str]],
+        metadata=None
+    ) -> Mapping[str, FrozenSet[str]]:
+    """
+    Generates a graph based on a set of equalities representing axes along which
+    tags are allowed to propagate.
+    """
+    from immutabledict import immutabledict
+    propagation_graph: Dict[str, Set[str]] = {}
+
+    # preprocess constraints using metadata
+    new_constraints = []
+
+    for lhs, rhs in constraints:
+        assert lhs != rhs
+        propagation_graph.setdefault(lhs, set()).add(rhs)
+        propagation_graph.setdefault(rhs, set()).add(lhs)
+
+    return immutabledict({k: frozenset(v)
+                           for k, v in propagation_graph.items()})
+
+
+def get_reachable_nodes(
+    undirected_graph: Mapping[GraphNodeT, Iterable[GraphNodeT]],
+    source_node: GraphNodeT) -> FrozenSet[GraphNodeT]:
+    """
+    Returns a :class:`frozenset` of all nodes in *undirected_graph* that are
+    reachable from *source_node*.
+    """
+    nodes_visited: Set[GraphNodeT] = set()
+    nodes_to_visit = {source_node}
+
+    while nodes_to_visit:
+        current_node = nodes_to_visit.pop()
+        nodes_visited.add(current_node)
+
+        neighbors = undirected_graph[current_node]
+        nodes_to_visit.update({node
+                               for node in neighbors
+                               if node not in nodes_visited})
+
+    return frozenset(nodes_visited)
+
+# }}}
 
 
 # vim: foldmethod=marker
