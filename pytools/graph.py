@@ -5,6 +5,7 @@ __copyright__ = """
 Copyright (C) 2009-2013 Andreas Kloeckner
 Copyright (C) 2020 Matt Wala
 Copyright (C) 2020 James Stevens
+Copyright (C) 2024 Addison Alvey-Blanco
 """
 
 __license__ = """
@@ -47,6 +48,7 @@ Graph Algorithms
 .. autofunction:: as_graphviz_dot
 .. autofunction:: validate_graph
 .. autofunction:: is_connected
+.. autofunction:: get_propagation_graph_from_constraints
 
 Type Variables Used
 -------------------
@@ -527,19 +529,25 @@ def is_connected(graph: GraphT[NodeT]) -> bool:
 # {{{ tag propagation graph processing
 
 def get_propagation_graph_from_constraints(
-        constraints: List[Tuple[str, str]],
+        constraints: Iterable[Tuple[str, str]],
     ) -> Mapping[str, FrozenSet[str]]:
     """
-    Generates a graph based on a set of equalities representing axes along which
-    tags are allowed to propagate.
+    :arg constraints: An :class:`Iterable` of pairs of variable strings
+    representing an equality between the variables.
+
+    Constructs an undirected graph using *constraints* whose nodes are the
+    variables in *constraints*. Edges represent equality between the nodes. Can
+    be processed to tag all :class:`Taggable`s with connected :class:`Tag`s.
+
+    :returns: A :class:`Mapping` that represents the propagation graph
     """
     from immutabledict import immutabledict
     propagation_graph: Dict[str, Set[str]] = {}
 
     for lhs, rhs in constraints:
         if lhs == rhs:
-            raise TypeError("Found LHS and RHS in constraints that match."
-                            f" LHS = {lhs}, RHS = {rhs}")
+            raise TypeError("Found matching LHS and RHS in constraints,"
+                            f" LHS, RHS = {lhs}")
 
         propagation_graph.setdefault(lhs, set()).add(rhs)
         propagation_graph.setdefault(rhs, set()).add(lhs)
