@@ -535,15 +535,48 @@ def get_propagation_graph_from_constraints(
     tags are allowed to propagate.
     """
     from immutabledict import immutabledict
+    from pytools.tag import IgnoredForPropagationTag
     propagation_graph: Dict[str, Set[str]] = {}
 
-    # preprocess constraints using metadata
-    new_constraints = []
+    # {{{ preprocess constraints using metadata
+
+    if metadata is not None:
+        new_constraints = constraints.copy()
+        ignored_tagvars = [
+            tagvar
+            for tag, tagvar in metadata.items()
+            if isinstance(tag, IgnoredForPropagationTag)
+        ]
+
+        ignored_taggables = []
+        for tagvar in ignored_tagvars:
+            for constraint in constraints:
+                if tagvar in constraint:
+                    lhs, rhs = constraint
+
+                    if not lhs == tagvar:
+                        ignored_taggables.append(lhs)
+
+                    if not rhs == tagvar:
+                        ignored_taggables.append(rhs)
+
+        for constraint in constraints:
+            for taggable in ignored_taggables:
+                if taggable in constraint:
+                    new_constraints.remove(constraint)
+
+        constraints = new_constraints.copy()
+
+    # }}}
+
+    # {{{ generate propagation graph using constraints
 
     for lhs, rhs in constraints:
         assert lhs != rhs
         propagation_graph.setdefault(lhs, set()).add(rhs)
         propagation_graph.setdefault(rhs, set()).add(lhs)
+
+    # }}}
 
     return immutabledict({k: frozenset(v)
                            for k, v in propagation_graph.items()})
