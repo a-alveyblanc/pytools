@@ -362,18 +362,6 @@ class IgnoredForEqualityTag(Tag):
 # }}}
 
 
-# {{{ IgnoredForPropagationTag
-
-class IgnoredForPropagationTag(UniqueTag):
-    """
-    Used to signify that a Taggable should *not* have any tags propagated along
-    it.
-    """
-    pass
-
-# }}}
-
-
 # {{{ deprecation
 
 _depr_name_to_replacement_and_obj = {
